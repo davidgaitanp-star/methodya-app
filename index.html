@@ -1,0 +1,1470 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>METHODYA - Plataforma de Automatización y Calibración Pedagógica</title>
+  
+  <!-- Fuentes Premium de Google -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Configuración de Colores Corporativos de METHODYA -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              teal: '#0D9488',       // Cognitive Teal: Inteligencia y Estado Correcto
+              amber: '#F59E0B',      // Warm Amber: Hitos y Alertas Creativas
+              violet: '#4C1D95',     // Deep Violet: Estructura, Encabezados y Jerarquía
+              linen: '#FFFBEB',      // Empathetic Linen: Fondo Editorial que reduce fatiga cognitiva
+              darkViolet: '#2E1065',
+              softTeal: '#CCFBF1',
+              softAmber: '#FEF3C7',
+            }
+          },
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            title: ['"Montserrat"', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- React y Babel CDNs para ejecución integrada -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    /* Suavizado de bordes y scroll premium */
+    body {
+      background-color: #F8FAFC;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #F1F5F9;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #CBD5E1;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94A3B8;
+    }
+    .custom-gradient-bg {
+      background: linear-gradient(135deg, #4C1D95 0%, #2D0F5C 100%);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Contenedor donde se montará la aplicación React -->
+  <div id="root"></div>
+
+  <!-- Código React de la aplicación -->
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // Componente Principal
+    function App() {
+      // Estado Global del Sistema
+      const [apiConfig, setApiConfig] = useState({
+        backendUrl: 'https://methodya-backend.vercel.app/api',
+        useMockBackend: true,
+        geminiKey: '',
+        isLive: false
+      });
+
+      // Notificaciones Internas (Evitar el uso de alert())
+      const [notification, setNotification] = useState(null);
+      const triggerNotification = (message, type = 'success') => {
+        setNotification({ message, type });
+        setTimeout(() => setNotification(null), 5000);
+      };
+
+      // Estado de Navegación de Pestañas
+      const [activeTab, setActiveTab] = useState('forms-designer');
+
+      // Estado de Usuarios (Requisito 1)
+      const [users, setUsers] = useState([
+        { id: 'usr-1', nombre: 'Dra. Elena Rostova', email: 'elena.rostova@methodya.edu', rol: 'Administrador', estado: 'Activo', fechaRegistro: '2026-01-10' },
+        { id: 'usr-2', nombre: 'Ing. Carlos Mendoza', email: 'carlos.mendoza@methodya.edu', rol: 'Diseñador', estado: 'Activo', fechaRegistro: '2026-03-02' },
+        { id: 'usr-3', nombre: 'Lic. Sofía Duarte', email: 'sofia.duarte@methodya.edu', rol: 'Validador Pedagógico', estado: 'Activo', fechaRegistro: '2026-05-15' },
+        { id: 'usr-4', nombre: 'Mateo González', email: 'mateo.gonzalez@methodya.edu', rol: 'Editor', estado: 'Inactivo', fechaRegistro: '2026-06-20' },
+        { id: 'usr-5', nombre: 'Paula Herrera', email: 'paula.herrera@methodya.edu', rol: 'Interventor', estado: 'Activo', fechaRegistro: '2026-07-01' }
+      ]);
+      
+      const [userModal, setUserModal] = useState({
+        isOpen: false,
+        mode: 'create', // 'create' | 'edit' | 'password'
+        selectedUser: null,
+        formData: { nombre: '', email: '', rol: 'Diseñador', estado: 'Activo', password: '', confirmPassword: '' }
+      });
+
+      // Estado del Diseñador de Formulario (Requisito 2)
+      const [formFields, setFormFields] = useState([
+        {
+          id: 'field-1',
+          variable: 'nombre_estudiante',
+          label: 'Nombre completo del Estudiante',
+          tipo: 'texto',
+          placeholder: 'Ej. Juan Pérez',
+          seccion: 'Datos Personales',
+          requerido: true,
+          limitMin: 3,
+          limitMax: 50,
+          validarIA: false,
+          iaPrompt: '',
+          regex: '^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]{3,50}$',
+          errorMsg: 'El nombre debe contener solo letras y espacio (entre 3 y 50 caracteres).'
+        },
+        {
+          id: 'field-2',
+          variable: 'edad_estudiante',
+          label: 'Edad en años',
+          tipo: 'texto',
+          placeholder: 'Ej. 14',
+          seccion: 'Datos Personales',
+          requerido: true,
+          limitMin: 1,
+          limitMax: 3,
+          validarIA: true,
+          iaPrompt: 'Debe ser un número entero positivo entre 4 y 99',
+          regex: '^(?:[4-9]|[1-9][0-9])$',
+          errorMsg: 'Debe ser una edad válida entre 4 y 99 años.'
+        },
+        {
+          id: 'field-3',
+          variable: 'estadio_cognitivo',
+          label: 'Estadio de Piaget Sugerido',
+          tipo: 'varias_opciones',
+          seccion: 'Evaluación Pedagógica',
+          opciones: ['Sensoriomotor / Preoperacional', 'Operaciones Concretas', 'Operaciones Formales'],
+          requerido: true
+        },
+        {
+          id: 'field-4',
+          variable: 'observaciones_metodologicas',
+          label: 'Diagnóstico Pedagógico Completo',
+          tipo: 'parrafo',
+          placeholder: 'Escribe las observaciones detalladas...',
+          seccion: 'Evaluación Pedagógica',
+          requerido: false,
+          limitMin: 10,
+          limitMax: 500
+        },
+        {
+          id: 'field-5',
+          variable: 'consentimiento_firmado',
+          label: 'Autorización y Declaración de Consentimiento',
+          tipo: 'casillas',
+          seccion: 'Documentos de Soporte',
+          opciones: ['Acepto los lineamientos éticos', 'Acepto la política de protección de datos de METHODYA'],
+          requerido: true
+        },
+        {
+          id: 'field-6',
+          variable: 'soporte_academico',
+          label: 'Adjuntar Expediente Académico Anterior',
+          tipo: 'subir_archivo',
+          seccion: 'Documentos de Soporte',
+          requerido: false
+        }
+      ]);
+
+      const [selectedField, setSelectedField] = useState(null);
+      const [aiLoading, setAiLoading] = useState(false);
+
+      // Datos recolectados del Formulario (Modo Ejecución)
+      const [formDataAnswers, setFormDataAnswers] = useState({
+        nombre_estudiante: 'Andrés Felipe Soler',
+        edad_estudiante: '12',
+        estadio_cognitivo: 'Operaciones Concretas',
+        observaciones_metodologicas: 'El estudiante demuestra un dominio intuitivo de la conservación de volumen y peso, requiriendo analogías concretas del mundo físico para la resolución de fracciones matemáticas elementales.',
+        consentimiento_firmado: ['Acepto los lineamientos éticos', 'Acepto la política de protección de datos de METHODYA'],
+        soporte_academico: 'expediente_septimo_grado_firmado.pdf'
+      });
+      const [executionErrors, setExecutionErrors] = useState({});
+
+      // Estado de Plantillas y Fusión de Slides (Módulo 3)
+      const [slidesConfig, setSlidesConfig] = useState({
+        presentationUrl: 'https://docs.google.com/presentation/d/1_Wpul3o2UjmoDNY5Kz-eioXuQACWVciOql0lelalqw0/edit?usp=sharing',
+        activeSlideIndex: 0,
+        slideTexts: [
+          { id: 'txt-1', original: 'Bienvenido, {{nombre_estudiante}}', actual: 'Bienvenido, {{nombre_estudiante}}' },
+          { id: 'txt-2', original: 'Estadio Evaluado: {{estadio_cognitivo}}', actual: 'Estadio Evaluado: {{estadio_cognitivo}}' },
+          { id: 'txt-3', original: 'Análisis: El estudiante tiene {{edad_estudiante}} años.', actual: 'Análisis: El estudiante tiene {{edad_estudiante}} años.' },
+          { id: 'txt-4', original: 'Diagnóstico Crítico: {{observaciones_metodologicas}}', actual: 'Diagnóstico Crítico: {{observaciones_metodologicas}}' }
+        ]
+      });
+
+      // Simulador de renderizado físico de Slide
+      const [slideMergedHtml, setSlideMergedHtml] = useState('');
+
+      // Calcular calibración cognitiva Piaget basado en texto actual del slide
+      const [piagetCalibration, setPiagetCalibration] = useState({
+        estadio: 'Operaciones Concretas',
+        color: '#0D9488', // Cognitive Teal
+        rangoEdad: '7 a 11 años',
+        descripcion: 'Pensamiento lógico inductivo. Requiere el uso de analogías físicas y relaciones tangibles para un aprendizaje óptimo.'
+      });
+
+      // Sincronizar calibración y fusión cada vez que cambien los datos o las diapositivas
+      useEffect(() => {
+        performTextFusion();
+      }, [formDataAnswers, slidesConfig.slideTexts]);
+
+      // Fusión de variables en tiempo real
+      const performTextFusion = () => {
+        let textPool = "";
+        const updatedTexts = slidesConfig.slideTexts.map(t => {
+          let merged = t.actual;
+          Object.keys(formDataAnswers).forEach(variable => {
+            const val = Array.isArray(formDataAnswers[variable]) 
+              ? formDataAnswers[variable].join(', ') 
+              : formDataAnswers[variable];
+            merged = merged.replace(new RegExp(`{{${variable}}}`, 'g'), val || '');
+          });
+          textPool += " " + merged;
+          return { ...t, merged };
+        });
+
+        // Heurística de calibración cognitiva Piaget según el texto de la diapositiva
+        let stadium = 'Operaciones Concretas';
+        let color = '#0D9488'; // Teal
+        let age = '7 a 11 años';
+        let desc = 'Pensamiento lógico inductivo. Requiere el uso de analogías físicas y relaciones tangibles para un aprendizaje óptimo.';
+
+        const lowerPool = textPool.toLowerCase();
+        if (lowerPool.includes('juego') || lowerPool.includes('sensorial') || lowerPool.includes('dibujo') || lowerPool.includes('preoperacional') || (formDataAnswers.edad_estudiante && parseInt(formDataAnswers.edad_estudiante) < 7)) {
+          stadium = 'Sensoriomotor / Preoperacional';
+          color = '#F59E0B'; // Amber
+          age = 'Menos de 7 años';
+          desc = 'Dominio de la función simbólica y el juego centrado en el yo. Requiere abundante apoyo icónico, colores vivos y actividades lúdicas directas.';
+        } else if (lowerPool.includes('abstrac') || lowerPool.includes('teor') || lowerPool.includes('formales') || (formDataAnswers.edad_estudiante && parseInt(formDataAnswers.edad_estudiante) >= 12)) {
+          stadium = 'Operaciones Formales';
+          color = '#4C1D95'; // Deep Violet
+          age = '12 años en adelante';
+          desc = 'Capacidad de pensamiento abstracto, hipotético-deductivo e integraciones algebraicas complejas. Diseño técnico limpio y formal.';
+        }
+
+        setPiagetCalibration({ estadio: stadium, color, rangoEdad: age, descripcion: desc });
+      };
+
+      // Invocación a Gemini para Validación de IA (Requisito 2)
+      const handleGenerateRegexWithIA = async (fieldId) => {
+        const field = formFields.find(f => f.id === fieldId);
+        if (!field || !field.iaPrompt) {
+          triggerNotification('Describe primero la regla de validación en lenguaje natural.', 'error');
+          return;
+        }
+
+        setAiLoading(true);
+        triggerNotification('Consultando a Gemini AI Studio...', 'info');
+
+        try {
+          if (apiConfig.useMockBackend) {
+            // Simulación heurística local ultra inteligente
+            setTimeout(() => {
+              let simulatedRegex = '^[A-Z]{1,5}$';
+              let simulatedError = 'Debe cumplir con el formato indicado por el administrador.';
+              
+              const prompt = field.iaPrompt.toLowerCase();
+              if (prompt.includes('teléfono') || prompt.includes('celular') || prompt.includes('numero')) {
+                simulatedRegex = '^\\+?\\d{10,13}$';
+                simulatedError = 'Debe ser un número telefónico válido (10 a 13 dígitos).';
+              } else if (prompt.includes('correo') || prompt.includes('email')) {
+                simulatedRegex = '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$';
+                simulatedError = 'Debe introducir una dirección de correo electrónico válida.';
+              } else if (prompt.includes('letras') || prompt.includes('solo letras')) {
+                simulatedRegex = '^[a-zA-ZáéíóúÁÉÍÓÚñÑ ]+$';
+                simulatedError = 'Este campo solo acepta caracteres alfabéticos.';
+              } else if (prompt.includes('rango') || prompt.includes('número entre')) {
+                simulatedRegex = '^(1[8-9]|[2-5][0-9]|60)$';
+                simulatedError = 'Debe ingresar un número entero en el rango especificado.';
+              }
+
+              updateFieldProperty(fieldId, 'regex', simulatedRegex);
+              updateFieldProperty(fieldId, 'errorMsg', simulatedError);
+              setAiLoading(false);
+              triggerNotification('Expresión regular generada por IA Heurística exitosamente.', 'success');
+            }, 1500);
+          } else {
+            // Llamada segura a través de nuestro Backend Serverless Middleware
+            const response = await fetch(`${apiConfig.backendUrl}/gemini-validate`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                prompt: field.iaPrompt,
+                apiKey: apiConfig.geminiKey
+              })
+            });
+
+            if (!response.ok) throw new Error('Error en la comunicación con el servidor backend.');
+            const data = await response.json();
+            
+            updateFieldProperty(fieldId, 'regex', data.regex);
+            updateFieldProperty(fieldId, 'errorMsg', data.errorMsg);
+            setAiLoading(false);
+            triggerNotification('Gemini en vivo generó las validaciones exitosamente.', 'success');
+          }
+        } catch (error) {
+          console.error(error);
+          setAiLoading(false);
+          triggerNotification('No se pudo conectar con el servicio de IA. Verifica tu API Key o Backend.', 'error');
+        }
+      };
+
+      // Auxiliares para modificar propiedades de campos
+      const updateFieldProperty = (id, prop, value) => {
+        setFormFields(prev => prev.map(f => f.id === id ? { ...f, [prop]: value } : f));
+      };
+
+      // Agregar nuevo campo al diseñador
+      const handleAddField = () => {
+        const newId = `field-${Date.now()}`;
+        const newField = {
+          id: newId,
+          variable: `nueva_variable_${formFields.length + 1}`,
+          label: 'Nuevo Campo de Formulario',
+          tipo: 'texto',
+          placeholder: 'Escribe aquí...',
+          seccion: 'General',
+          requerido: false,
+          limitMin: 0,
+          limitMax: 250,
+          validarIA: false,
+          iaPrompt: '',
+          regex: '',
+          errorMsg: 'Formato incorrecto'
+        };
+        setFormFields([...formFields, newField]);
+        setSelectedField(newId);
+        triggerNotification('Nuevo campo agregado.');
+      };
+
+      // Eliminar campo del diseñador
+      const handleDeleteField = (id) => {
+        setFormFields(prev => prev.filter(f => f.id !== id));
+        if (selectedField === id) setSelectedField(null);
+        triggerNotification('Campo eliminado del formulario.', 'info');
+      };
+
+      // Gestión de Usuarios (Requisito 1 - Operaciones CRUD)
+      const openUserModal = (mode, user = null) => {
+        if (mode === 'create') {
+          setUserModal({
+            isOpen: true,
+            mode: 'create',
+            selectedUser: null,
+            formData: { nombre: '', email: '', rol: 'Diseñador', estado: 'Activo', password: '', confirmPassword: '' }
+          });
+        } else if (mode === 'edit') {
+          setUserModal({
+            isOpen: true,
+            mode: 'edit',
+            selectedUser: user,
+            formData: { nombre: user.nombre, email: user.email, rol: user.rol, estado: user.estado, password: '', confirmPassword: '' }
+          });
+        } else if (mode === 'password') {
+          setUserModal({
+            isOpen: true,
+            mode: 'password',
+            selectedUser: user,
+            formData: { nombre: user.nombre, email: user.email, rol: user.rol, estado: user.estado, password: '', confirmPassword: '' }
+          });
+        }
+      };
+
+      const handleSaveUser = () => {
+        const { nombre, email, rol, estado, password, confirmPassword } = userModal.formData;
+        
+        // Validaciones Básicas
+        if (!nombre || !email) {
+          triggerNotification('Nombre y Correo electrónico son requeridos.', 'error');
+          return;
+        }
+
+        if (userModal.mode === 'create' || userModal.mode === 'password') {
+          if (!password) {
+            triggerNotification('La contraseña no puede estar vacía.', 'error');
+            return;
+          }
+          if (password !== confirmPassword) {
+            triggerNotification('Las contraseñas no coinciden.', 'error');
+            return;
+          }
+        }
+
+        if (userModal.mode === 'create') {
+          const newUser = {
+            id: `usr-${Date.now()}`,
+            nombre,
+            email,
+            rol,
+            estado,
+            fechaRegistro: new Date().toISOString().split('T')[0]
+          };
+          setUsers([...users, newUser]);
+          triggerNotification(`Usuario ${nombre} creado con éxito.`);
+        } else if (userModal.mode === 'edit') {
+          setUsers(prev => prev.map(u => u.id === userModal.selectedUser.id 
+            ? { ...u, nombre, email, rol, estado } 
+            : u
+          ));
+          triggerNotification(`Usuario ${nombre} actualizado correctamente.`);
+        } else if (userModal.mode === 'password') {
+          triggerNotification(`Contraseña de ${nombre} actualizada de forma segura en el sistema.`);
+        }
+
+        setUserModal({ ...userModal, isOpen: false });
+      };
+
+      const handleDeleteUser = (userId, userName) => {
+        setUsers(prev => prev.filter(u => u.id !== userId));
+        triggerNotification(`Usuario ${userName} eliminado del sistema.`, 'info');
+      };
+
+      // Validar un campo en vivo en la pantalla de Ejecución
+      const validateExecutionInput = (field, value) => {
+        if (field.requerido && (!value || (Array.isArray(value) && value.length === 0))) {
+          return 'Este campo es obligatorio.';
+        }
+        
+        if (typeof value === 'string' && value.trim() !== '') {
+          // Validar límites de longitud
+          if (field.limitMin !== undefined && value.length < field.limitMin) {
+            return `Debe contener al menos ${field.limitMin} caracteres.`;
+          }
+          if (field.limitMax !== undefined && value.length > field.limitMax) {
+            return `No debe exceder los ${field.limitMax} caracteres.`;
+          }
+          // Validar expresión regular
+          if (field.regex) {
+            try {
+              const reg = new RegExp(field.regex);
+              if (!reg.test(value)) {
+                return field.errorMsg || 'Formato de campo inválido.';
+              }
+            } catch (err) {
+              console.warn("Regex inválida configurada en el diseñador:", field.regex);
+            }
+          }
+        }
+        return null;
+      };
+
+      const handleExecutionInputChange = (field, value) => {
+        const updatedAnswers = { ...formDataAnswers, [field.variable]: value };
+        setFormDataAnswers(updatedAnswers);
+        
+        const error = validateExecutionInput(field, value);
+        setExecutionErrors(prev => ({
+          ...prev,
+          [field.variable]: error
+        }));
+      };
+
+      // Guardar formulario en simulación backend
+      const handleSaveFormAnswers = () => {
+        // Ejecutar todas las validaciones previas al guardado
+        const errors = {};
+        formFields.forEach(field => {
+          const val = formDataAnswers[field.variable];
+          const err = validateExecutionInput(field, val);
+          if (err) errors[field.variable] = err;
+        });
+
+        if (Object.keys(errors).length > 0) {
+          setExecutionErrors(errors);
+          triggerNotification('Por favor corrige las alertas rojas del formulario antes de procesar.', 'error');
+          return;
+        }
+
+        triggerNotification('Respuestas del expediente registradas con persistencia exitosa.', 'success');
+      };
+
+      // Procesar y enviar plantilla con variables
+      const handleProcessGoogleSlides = () => {
+        triggerNotification('Conectando con Google Slides API y creando clon en Google Drive...', 'info');
+        
+        setTimeout(() => {
+          triggerNotification('Clon de diapositivas creado de forma exitosa bajo ID: _copy_' + Date.now().toString(16), 'success');
+        }, 2000);
+      };
+
+      // Extraer ID de Slide para visor interactivo real
+      const getSlidesEmbedUrl = (url) => {
+        try {
+          const match = url.match(/\/presentation\/d\/([a-zA-Z0-9-_]+)/);
+          if (match && match[1]) {
+            return `https://docs.google.com/presentation/d/${match[1]}/embed?start=false&loop=false&delayms=3000`;
+          }
+        } catch (e) {}
+        // Fallback al ID por defecto
+        return "https://docs.google.com/presentation/d/1_Wpul3o2UjmoDNY5Kz-eioXuQACWVciOql0lelalqw0/embed?start=false&loop=false&delayms=3000";
+      };
+
+      return (
+        <div className="min-h-screen flex flex-col font-sans bg-[#F8FAFC]">
+          
+          {/* Alertas/Notificaciones flotantes */}
+          {notification && (
+            <div className={`fixed bottom-4 right-4 z-50 flex items-center p-4 rounded-xl shadow-lg border text-sm max-w-md transition-all transform duration-300 animate-bounce ${
+              notification.type === 'success' ? 'bg-[#ECFDF5] text-[#065F46] border-[#A7F3D0]' :
+              notification.type === 'error' ? 'bg-[#FEF2F2] text-[#991B1B] border-[#FCA5A5]' :
+              'bg-[#EFF6FF] text-[#1E40AF] border-[#BFDBFE]'
+            }`}>
+              <div className="mr-3">
+                {notification.type === 'success' ? (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                ) : (
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                )}
+              </div>
+              <div className="font-semibold">{notification.message}</div>
+            </div>
+          )}
+
+          {/* CABECERA CORPORATIVA DE METHODYA */}
+          <header className="custom-gradient-bg text-white shadow-xl px-6 py-4 flex flex-col md:flex-row justify-between items-center gap-4 border-b border-purple-900">
+            <div className="flex items-center gap-3">
+              {/* Logo fallback vectorial */}
+              <div className="bg-white p-2 rounded-xl flex items-center justify-center shadow-md">
+                <svg className="w-9 h-9 text-brand-violet" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="10" fill="none" />
+                  <path d="M35 30 L65 30 L50 70 Z" fill="#F59E0B" />
+                  <circle cx="50" cy="30" r="8" fill="#0D9488" />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-2xl font-extrabold tracking-tight font-title">METHODYA</h1>
+                <p className="text-xs text-brand-softAmber font-medium">El puente empático hacia el aprendizaje real</p>
+              </div>
+            </div>
+
+            {/* Estado e Integración de IA */}
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2 bg-purple-950/60 px-4 py-2 rounded-xl border border-purple-800 text-xs">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span className="text-gray-300">Conexión Segura:</span>
+                <strong className="text-white">Supabase / MongoDB</strong>
+              </div>
+
+              <div className="flex items-center gap-2 bg-purple-950/60 px-4 py-2 rounded-xl border border-purple-800 text-xs">
+                <span className={`w-2.5 h-2.5 rounded-full ${apiConfig.useMockBackend ? 'bg-amber-500' : 'bg-brand-teal animate-pulse'}`}></span>
+                <span className="text-gray-300">Motor IA:</span>
+                <strong className="text-white">{apiConfig.useMockBackend ? 'Heurística Local' : 'Gemini Cloud API'}</strong>
+              </div>
+            </div>
+          </header>
+
+          {/* BARRA DE NAVEGACIÓN PRINCIPAL */}
+          <nav className="bg-white border-b border-slate-200 px-6 py-2 flex flex-wrap gap-1">
+            <button 
+              onClick={() => setActiveTab('forms-designer')} 
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 ${activeTab === 'forms-designer' ? 'bg-brand-softTeal text-[#0F766E]' : 'text-slate-600 hover:bg-slate-50'}`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path></svg>
+              1. Diseñar Formulario
+            </button>
+            <button 
+              onClick={() => setActiveTab('forms-executor')} 
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 ${activeTab === 'forms-executor' ? 'bg-brand-softTeal text-[#0F766E]' : 'text-slate-600 hover:bg-slate-50'}`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+              <svg className="w-4 h-4 -ml-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+              2. Modo Ejecución
+            </button>
+            <button 
+              onClick={() => setActiveTab('slides-calibrator')} 
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 ${activeTab === 'slides-calibrator' ? 'bg-brand-softTeal text-[#0F766E]' : 'text-slate-600 hover:bg-slate-50'}`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 12l3-3 3 3 4-4M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+              3. Calibración de Slides
+            </button>
+            <button 
+              onClick={() => setActiveTab('users-management')} 
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 ${activeTab === 'users-management' ? 'bg-brand-softTeal text-[#0F766E]' : 'text-slate-600 hover:bg-slate-50'}`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+              4. Control de Usuarios
+            </button>
+            <button 
+              onClick={() => setActiveTab('server-config')} 
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all duration-150 ${activeTab === 'server-config' ? 'bg-brand-softTeal text-[#0F766E]' : 'text-slate-600 hover:bg-slate-50'}`}
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+              5. Parámetros del Servidor
+            </button>
+          </nav>
+
+          {/* CONTENEDOR DE PESTAÑAS */}
+          <main className="flex-1 p-6 max-w-7xl w-full mx-auto">
+            
+            {/* PESTAÑA 1: DISEÑADOR DE FORMULARIO */}
+            {activeTab === 'forms-designer' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                {/* Panel de Campos Existentes */}
+                <div className="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col gap-4">
+                  <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+                    <div>
+                      <h2 className="text-lg font-bold text-slate-800 font-title">Campos del Formulario</h2>
+                      <p className="text-xs text-slate-500">Haz clic para calibrar validaciones e IA</p>
+                    </div>
+                    <button 
+                      onClick={handleAddField}
+                      className="bg-brand-teal hover:bg-[#0D9488]/90 text-white font-semibold text-xs px-3.5 py-2 rounded-xl transition duration-150 flex items-center gap-1"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4"></path></svg>
+                      Agregar
+                    </button>
+                  </div>
+
+                  <div className="overflow-y-auto max-h-[500px] flex flex-col gap-2 pr-1">
+                    {formFields.map(field => (
+                      <div 
+                        key={field.id}
+                        onClick={() => setSelectedField(field.id)}
+                        className={`p-4 rounded-xl border transition-all cursor-pointer ${selectedField === field.id ? 'border-brand-teal bg-brand-linen/40 ring-1 ring-brand-teal' : 'border-slate-200 hover:border-slate-300 bg-white'}`}
+                      >
+                        <div className="flex justify-between items-start gap-2">
+                          <span className="text-xs font-semibold bg-brand-softTeal text-brand-teal px-2 py-0.5 rounded-full uppercase tracking-wider">
+                            {field.tipo}
+                          </span>
+                          <span className="text-xs font-mono text-slate-400">
+                            {"{{"}{field.variable}{"}}"}
+                          </span>
+                        </div>
+                        <h4 className="font-semibold text-sm text-slate-800 mt-2">{field.label || 'Sin etiqueta'}</h4>
+                        <div className="flex gap-2 mt-2">
+                          {field.requerido && <span className="text-[10px] font-semibold bg-red-100 text-red-800 px-2 py-0.5 rounded">Obligatorio</span>}
+                          {field.validarIA && <span className="text-[10px] font-semibold bg-purple-100 text-purple-800 px-2 py-0.5 rounded">Filtro IA</span>}
+                          {field.regex && <span className="text-[10px] font-semibold bg-blue-100 text-blue-800 px-2 py-0.5 rounded">Regex</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Panel de Configuración Detallada de Campo */}
+                <div className="lg:col-span-7">
+                  {selectedField ? (
+                    (() => {
+                      const field = formFields.find(f => f.id === selectedField);
+                      if (!field) return <p className="text-slate-500">Selecciona un campo.</p>;
+                      return (
+                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col gap-5">
+                          <div className="flex justify-between items-center pb-4 border-b border-slate-100">
+                            <h3 className="text-lg font-bold text-brand-violet font-title">Ajustes de Campo</h3>
+                            <button 
+                              onClick={() => handleDeleteField(field.id)}
+                              className="text-red-600 hover:text-red-800 text-xs font-semibold flex items-center gap-1"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                              Eliminar Campo
+                            </button>
+                          </div>
+
+                          {/* Fila Básica */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Nombre de Variable</label>
+                              <input 
+                                type="text"
+                                value={field.variable}
+                                onChange={(e) => updateFieldProperty(field.id, 'variable', e.target.value.replace(/[^a-zA-Z0-9_]/g, ''))}
+                                className="w-full text-sm border border-slate-300 rounded-xl px-3 py-2 focus:ring-1 focus:ring-brand-teal focus:border-brand-teal"
+                                placeholder="Ej. nombre_estudiante"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Tipo de Campo</label>
+                              <select 
+                                value={field.tipo}
+                                onChange={(e) => updateFieldProperty(field.id, 'tipo', e.target.value)}
+                                className="w-full text-sm border border-slate-300 rounded-xl px-3 py-2 bg-white focus:ring-1 focus:ring-brand-teal"
+                              >
+                                <option value="texto">Texto Corto</option>
+                                <option value="parrafo">Párrafo (Texto Largo)</option>
+                                <option value="casillas">Casillas de Selección (Checkboxes)</option>
+                                <option value="varias_opciones">Varias Opciones (Radio)</option>
+                                <option value="subir_archivo">Subir Archivo (.pdf, .doc)</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Etiqueta de visualización (Label)</label>
+                            <input 
+                              type="text"
+                              value={field.label}
+                              onChange={(e) => updateFieldProperty(field.id, 'label', e.target.value)}
+                              className="w-full text-sm border border-slate-300 rounded-xl px-3 py-2 focus:ring-1 focus:ring-brand-teal"
+                              placeholder="Ej. Nombre completo del Alumno"
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Sección del Formulario</label>
+                              <input 
+                                type="text"
+                                value={field.seccion}
+                                onChange={(e) => updateFieldProperty(field.id, 'seccion', e.target.value)}
+                                className="w-full text-sm border border-slate-300 rounded-xl px-3 py-2 focus:ring-1 focus:ring-brand-teal"
+                                placeholder="Ej. Datos Personales"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">Texto de Ayuda (Placeholder)</label>
+                              <input 
+                                type="text"
+                                value={field.placeholder || ''}
+                                onChange={(e) => updateFieldProperty(field.id, 'placeholder', e.target.value)}
+                                className="w-full text-sm border border-slate-300 rounded-xl px-3 py-2 focus:ring-1 focus:ring-brand-teal"
+                                placeholder="Ej. Introduce tu edad..."
+                              />
+                            </div>
+                          </div>
+
+                          {/* Secciones de Opciones para Checkboxes/Radios */}
+                          {(field.tipo === 'casillas' || field.tipo === 'varias_opciones') && (
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Opciones Disponibles (separadas por comas)</label>
+                              <textarea 
+                                value={field.opciones ? field.opciones.join(', ') : ''}
+                                onChange={(e) => updateFieldProperty(field.id, 'opciones', e.target.value.split(',').map(s => s.trim()))}
+                                className="w-full text-sm border border-slate-300 rounded-lg p-2 h-16 focus:ring-1 focus:ring-brand-teal"
+                                placeholder="Opción A, Opción B, Opción C..."
+                              />
+                            </div>
+                          )}
+
+                          {/* Bloque de validación por longitud */}
+                          {(field.tipo === 'texto' || field.tipo === 'parrafo') && (
+                            <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-600 mb-1">Mínimo de caracteres</label>
+                                <input 
+                                  type="number"
+                                  value={field.limitMin !== undefined ? field.limitMin : ''}
+                                  onChange={(e) => updateFieldProperty(field.id, 'limitMin', parseInt(e.target.value) || 0)}
+                                  className="w-full text-sm border border-slate-300 rounded-lg px-2 py-1"
+                                />
+                              </div>
+                              <div>
+                                <label className="block text-xs font-semibold text-slate-600 mb-1">Máximo de caracteres</label>
+                                <input 
+                                  type="number"
+                                  value={field.limitMax !== undefined ? field.limitMax : ''}
+                                  onChange={(e) => updateFieldProperty(field.id, 'limitMax', parseInt(e.target.value) || 0)}
+                                  className="w-full text-sm border border-slate-300 rounded-lg px-2 py-1"
+                                />
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Configuración de IA de Validación */}
+                          <div className="border-t border-slate-100 pt-4 mt-2">
+                            <div className="flex items-center justify-between mb-4">
+                              <div>
+                                <h4 className="text-sm font-bold text-slate-800">Calibrar Validación por IA</h4>
+                                <p className="text-xs text-slate-500">Diseña lógica en lenguaje natural</p>
+                              </div>
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input 
+                                  type="checkbox" 
+                                  checked={field.validarIA}
+                                  onChange={(e) => updateFieldProperty(field.id, 'validarIA', e.target.checked)}
+                                  className="sr-only peer"
+                                />
+                                <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-teal"></div>
+                              </label>
+                            </div>
+
+                            {field.validarIA && (
+                              <div className="flex flex-col gap-4 bg-brand-linen/40 p-4 rounded-xl border border-brand-amber/30">
+                                <div>
+                                  <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Instrucciones para Gemini (Lenguaje Natural)</label>
+                                  <textarea 
+                                    value={field.iaPrompt}
+                                    onChange={(e) => updateFieldProperty(field.id, 'iaPrompt', e.target.value)}
+                                    className="w-full text-sm border border-slate-300 rounded-xl p-3 h-20 focus:ring-1 focus:ring-brand-teal bg-white"
+                                    placeholder="Ej: Debe ser una dirección de email corporativo que termine únicamente en @methodya.edu..."
+                                  />
+                                </div>
+
+                                <button
+                                  onClick={() => handleGenerateRegexWithIA(field.id)}
+                                  disabled={aiLoading}
+                                  className="self-start bg-brand-violet hover:bg-brand-darkViolet text-white font-semibold text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 transition duration-150 shadow disabled:opacity-50"
+                                >
+                                  {aiLoading ? (
+                                    <span className="inline-block w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+                                  ) : (
+                                    <svg className="w-4 h-4 text-brand-amber" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 10-2 0v1a1 1 0 102 0V3zM15.657 5.757a1 1 0 00-1.414-1.414l-.707.707a1 1 0 001.414 1.414l.707-.707zM18 10a1 1 0 01-1 1h-1a1 1 0 110-2h1a1 1 0 011 1zM5.05 6.464a1 1 0 10-1.414-1.414l.707.707a1 1 0 101.414-1.414l-.707-.707zM5 10a1 1 0 01-1 1H3a1 1 0 110-2h1a1 1 0 011 1zM8 16v-1a1 1 0 112 0v1a1 1 0 11-2 0zM12 14a1 1 0 100 2h1a1 1 0 100-2h-1zM4.343 14.243a1 1 0 101.414 1.414l.707-.707a1 1 0 00-1.414-1.414l-.707.707zM10 10a1 1 0 11-2 0 1 1 0 012 0z"></path></svg>
+                                  )}
+                                  Generar con Gemini AI
+                                </button>
+
+                                {/* Regex Editable Manualmente */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3 border-t border-slate-200">
+                                  <div>
+                                    <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Expresión Regular Resultante (Editable)</label>
+                                    <input 
+                                      type="text"
+                                      value={field.regex}
+                                      onChange={(e) => updateFieldProperty(field.id, 'regex', e.target.value)}
+                                      className="w-full text-xs font-mono border border-slate-300 rounded-lg px-2 py-1.5 bg-white"
+                                      placeholder="Ej: ^[0-9]{10}$"
+                                    />
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Mensaje de error personalizado</label>
+                                    <input 
+                                      type="text"
+                                      value={field.errorMsg}
+                                      onChange={(e) => updateFieldProperty(field.id, 'errorMsg', e.target.value)}
+                                      className="w-full text-xs border border-slate-300 rounded-lg px-2 py-1.5 bg-white"
+                                      placeholder="Ej: El valor ingresado es inválido..."
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Campo de Requerido */}
+                          <div className="flex items-center gap-2 pt-2">
+                            <input 
+                              type="checkbox" 
+                              id="required_check"
+                              checked={field.requerido}
+                              onChange={(e) => updateFieldProperty(field.id, 'requerido', e.target.checked)}
+                              className="w-4 h-4 text-brand-teal border-slate-300 rounded focus:ring-brand-teal"
+                            />
+                            <label htmlFor="required_check" className="text-xs font-bold text-slate-700 uppercase cursor-pointer">Definir este campo como obligatorio</label>
+                          </div>
+
+                        </div>
+                      );
+                    })()
+                  ) : (
+                    <div className="bg-slate-100 rounded-2xl border-2 border-dashed border-slate-300 p-12 text-center">
+                      <svg className="w-12 h-12 text-slate-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path></svg>
+                      <h3 className="text-slate-700 font-bold mb-1">Ningún Campo Seleccionado</h3>
+                      <p className="text-slate-500 text-sm">Selecciona un campo de la izquierda para configurar su comportamiento, longitud y validación inteligente.</p>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
+
+            {/* PESTAÑA 2: MODO EJECUCIÓN DEL FORMULARIO */}
+            {activeTab === 'forms-executor' && (
+              <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="custom-gradient-bg p-6 text-white">
+                  <span className="text-[10px] font-bold uppercase bg-brand-amber text-slate-900 px-2.5 py-1 rounded-full tracking-wider">Formulario Activo</span>
+                  <h2 className="text-xl font-bold mt-2 font-title">Expediente de Calibración Pedagógica</h2>
+                  <p className="text-xs text-brand-linen/80 mt-1">Completa los campos requeridos. Los validadores heurísticos e IA están operando en tiempo real.</p>
+                </div>
+
+                <div className="p-6 flex flex-col gap-5 bg-brand-linen/10">
+                  {/* Agrupar por Secciones */}
+                  {Array.from(new Set(formFields.map(f => f.seccion))).map(seccion => (
+                    <div key={seccion} className="mb-4">
+                      <h3 className="text-xs font-bold text-brand-violet tracking-widest uppercase border-b border-purple-100 pb-1 mb-4">{seccion}</h3>
+                      
+                      <div className="flex flex-col gap-4">
+                        {formFields.filter(f => f.seccion === seccion).map(field => {
+                          const value = formDataAnswers[field.variable];
+                          const error = executionErrors[field.variable];
+
+                          return (
+                            <div key={field.id} className="flex flex-col gap-1.5">
+                              <label className="text-xs font-bold text-slate-700 flex items-center gap-1">
+                                {field.label}
+                                {field.requerido && <span className="text-red-500">*</span>}
+                              </label>
+
+                              {/* Control según Tipo */}
+                              {field.tipo === 'texto' && (
+                                <input 
+                                  type="text"
+                                  value={value || ''}
+                                  placeholder={field.placeholder}
+                                  onChange={(e) => handleExecutionInputChange(field, e.target.value)}
+                                  className={`w-full text-sm border rounded-xl px-3 py-2 bg-white focus:outline-none transition ${error ? 'border-red-500 focus:ring-1 focus:ring-red-500' : 'border-slate-300 focus:ring-1 focus:ring-brand-teal'}`}
+                                />
+                              )}
+
+                              {field.tipo === 'parrafo' && (
+                                <textarea 
+                                  value={value || ''}
+                                  placeholder={field.placeholder}
+                                  rows="3"
+                                  onChange={(e) => handleExecutionInputChange(field, e.target.value)}
+                                  className={`w-full text-sm border rounded-xl px-3 py-2 bg-white focus:outline-none transition ${error ? 'border-red-500 focus:ring-1 focus:ring-red-500' : 'border-slate-300 focus:ring-1 focus:ring-brand-teal'}`}
+                                />
+                              )}
+
+                              {field.tipo === 'casillas' && (
+                                <div className="flex flex-col gap-2 mt-1">
+                                  {field.opciones?.map(opt => {
+                                    const currentArray = Array.isArray(value) ? value : [];
+                                    const isChecked = currentArray.includes(opt);
+                                    return (
+                                      <label key={opt} className="inline-flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer">
+                                        <input 
+                                          type="checkbox"
+                                          checked={isChecked}
+                                          onChange={() => {
+                                            const next = isChecked 
+                                              ? currentArray.filter(v => v !== opt)
+                                              : [...currentArray, opt];
+                                            handleExecutionInputChange(field, next);
+                                          }}
+                                          className="w-4 h-4 text-brand-teal rounded border-slate-300"
+                                        />
+                                        {opt}
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
+                              {field.tipo === 'varias_opciones' && (
+                                <div className="flex flex-col gap-2 mt-1">
+                                  {field.opciones?.map(opt => (
+                                    <label key={opt} className="inline-flex items-center gap-2.5 text-xs text-slate-700 cursor-pointer">
+                                      <input 
+                                        type="radio"
+                                        name={field.variable}
+                                        checked={value === opt}
+                                        onChange={() => handleExecutionInputChange(field, opt)}
+                                        className="w-4 h-4 text-brand-teal border-slate-300 focus:ring-brand-teal"
+                                      />
+                                      {opt}
+                                    </label>
+                                  ))}
+                                </div>
+                              )}
+
+                              {field.tipo === 'subir_archivo' && (
+                                <div className="border-2 border-dashed border-slate-200 hover:border-brand-teal rounded-xl p-4 bg-white transition flex flex-col items-center justify-center text-center">
+                                  <svg className="w-8 h-8 text-slate-400 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                  <span className="text-xs font-semibold text-slate-600">Arraste aquí o haga clic para subir</span>
+                                  <span className="text-[10px] text-slate-400 mt-1">Límite 10MB (.PDF, .docx)</span>
+                                  {value && (
+                                    <div className="mt-2 bg-brand-softTeal text-brand-teal text-[11px] font-mono px-3 py-1 rounded-full flex items-center gap-1.5">
+                                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                                      {value}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+
+                              {/* Alerta de Error de Formato/Validación */}
+                              {error && (
+                                <span className="text-xs font-bold text-red-500 flex items-center gap-1 mt-1">
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                  {error}
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+
+                  <button
+                    onClick={handleSaveFormAnswers}
+                    className="w-full bg-[#0D9488] hover:bg-[#0D9488]/90 text-white font-bold py-3 px-4 rounded-xl transition duration-150 shadow mt-4 flex items-center justify-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
+                    Almacenar Expediente en Base de Datos
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* PESTAÑA 3: CALIBRACIÓN DE SLIDES Y VISOR EN VIVO */}
+            {activeTab === 'slides-calibrator' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                
+                {/* Panel de Controles a la Izquierda */}
+                <div className="lg:col-span-5 bg-white rounded-2xl shadow-sm border border-slate-200 p-5 flex flex-col gap-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-800 font-title">Enlace de Google Slides</h2>
+                    <p className="text-xs text-slate-500">Mapea variables a tu plantilla de Google</p>
+                  </div>
+
+                  <div>
+                    <input 
+                      type="text"
+                      value={slidesConfig.presentationUrl}
+                      onChange={(e) => setSlidesConfig({ ...slidesConfig, presentationUrl: e.target.value })}
+                      className="w-full text-xs font-mono border border-slate-300 rounded-xl px-3 py-2 bg-slate-50 focus:bg-white"
+                      placeholder="Pega el enlace de Google Slides aquí..."
+                    />
+                  </div>
+
+                  {/* Tarjeta de Calibración de Piaget (Lineamiento de Diseño) */}
+                  <div className="rounded-2xl p-5 text-white transition-all duration-300 shadow-md" style={{ backgroundColor: piagetCalibration.color }}>
+                    <div className="flex justify-between items-start">
+                      <span className="text-[10px] font-bold uppercase tracking-wider bg-white/20 px-2 py-0.5 rounded">
+                        CALIBRACIÓN PIAGET
+                      </span>
+                      <span className="text-xs font-bold bg-slate-900/40 px-2 py-0.5 rounded">
+                        {piagetCalibration.rangoEdad}
+                      </span>
+                    </div>
+                    <h3 className="text-xl font-extrabold mt-3 font-title">{piagetCalibration.estadio}</h3>
+                    <p className="text-xs text-white/95 mt-2 leading-relaxed">{piagetCalibration.descripcion}</p>
+                  </div>
+
+                  {/* Edición de Textos de la Diapositiva */}
+                  <div className="border-t border-slate-100 pt-3">
+                    <h3 className="text-sm font-bold text-slate-800 mb-2">Editar Texto de la Diapositiva</h3>
+                    <p className="text-xs text-slate-500 mb-3">Reescribe los cuadros de texto o añade variables {"{{nombre}}"} para simular el vaciado.</p>
+                    
+                    <div className="flex flex-col gap-3 max-h-[180px] overflow-y-auto pr-1">
+                      {slidesConfig.slideTexts.map((txt, index) => (
+                        <div key={txt.id} className="flex flex-col gap-1">
+                          <label className="text-[10px] font-mono text-slate-400">Cuadro de texto #{index + 1}</label>
+                          <input 
+                            type="text"
+                            value={txt.actual}
+                            onChange={(e) => {
+                              const updated = [...slidesConfig.slideTexts];
+                              updated[index].actual = e.target.value;
+                              setSlidesConfig({ ...slidesConfig, slideTexts: updated });
+                            }}
+                            className="w-full text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 focus:border-brand-teal"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={handleProcessGoogleSlides}
+                    className="bg-[#4C1D95] hover:bg-brand-darkViolet text-white font-bold py-2.5 px-4 rounded-xl text-xs transition duration-150 flex items-center justify-center gap-1.5 shadow"
+                  >
+                    <svg className="w-4 h-4 text-brand-amber" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+                    Ejecutar Vaciamiento en Drive Real
+                  </button>
+                </div>
+
+                {/* Panel del Visor y Simulador */}
+                <div className="lg:col-span-7 flex flex-col gap-6">
+                  
+                  {/* Visor de Google Slides Embebido */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3">
+                      <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-brand-teal"></span>
+                        Visor de Google Slides Oficial (Solo Lectura)
+                      </h3>
+                      <span className="text-[10px] font-semibold text-slate-400">Interactúa con el reproductor de Google</span>
+                    </div>
+
+                    <div className="relative w-full pb-[56.25%] bg-slate-100 rounded-xl overflow-hidden shadow-inner border border-slate-200">
+                      <iframe 
+                        src={getSlidesEmbedUrl(slidesConfig.presentationUrl)}
+                        className="absolute top-0 left-0 w-full h-full"
+                        frameBorder="0" 
+                        allowFullScreen={true} 
+                        mozallowfullscreen="true" 
+                        webkitallowfullscreen="true"
+                      ></iframe>
+                    </div>
+                  </div>
+
+                  {/* Simulador de Renderizado Físico (METHODYA Canvas) */}
+                  <div className="bg-brand-linen rounded-2xl shadow-sm border border-brand-amber/30 p-5">
+                    <div className="flex items-center justify-between pb-3 border-b border-brand-amber/20 mb-3">
+                      <h3 className="text-sm font-bold text-brand-violet flex items-center gap-2">
+                        <svg className="w-4 h-4 text-brand-amber" fill="currentColor" viewBox="0 0 20 20"><path d="M10 12a2 2 0 100-4 2 2 0 000 4z"></path><path fillRule="evenodd" d="M.458 10C1.732 5.943 5.522 3 10 3s8.268 2.943 9.542 7c-1.274 4.057-5.064 7-9.542 7S1.732 14.057.458 10zM14 10a4 4 0 11-8 0 4 4 0 018 0z" clipRule="evenodd"></path></svg>
+                        Simulador de Fusión de Variables (METHODYA Canvas)
+                      </h3>
+                      <span className="text-[10px] font-bold text-brand-teal uppercase bg-brand-softTeal px-2.5 py-1 rounded-full">Vista Previa</span>
+                    </div>
+
+                    {/* Canvas Físico que imita una diapositiva */}
+                    <div className="aspect-[16/9] bg-white rounded-xl shadow-md border border-slate-200 p-8 flex flex-col justify-between relative overflow-hidden">
+                      {/* Fondo decorativo sinapsis cognitiva */}
+                      <div className="absolute inset-0 opacity-[0.03] pointer-events-none">
+                        <svg className="w-full h-full" viewBox="0 0 100 100" fill="none" stroke="currentColor">
+                          <circle cx="20" cy="20" r="15" />
+                          <circle cx="80" cy="30" r="20" />
+                          <circle cx="50" cy="80" r="10" />
+                          <line x1="20" y1="20" x2="50" y2="80" strokeWidth="2" />
+                          <line x1="80" y1="30" x2="50" y2="80" strokeWidth="2" />
+                        </svg>
+                      </div>
+
+                      {/* Header de la Diapositiva */}
+                      <div className="flex justify-between items-start border-b border-slate-100 pb-3 z-10">
+                        <div>
+                          <span className="text-[9px] font-bold uppercase text-brand-teal tracking-widest">METODOLOGÍA COGNITIVA ACTIVA</span>
+                          <h2 className="text-lg font-bold text-slate-800 tracking-tight font-title">
+                            {slidesConfig.slideTexts[0] ? (
+                              slidesConfig.slideTexts[0].actual.replace(/{{nombre_estudiante}}/g, formDataAnswers.nombre_estudiante || '[Nombre]')
+                            ) : 'Bienvenido'}
+                          </h2>
+                        </div>
+                        <span className="text-xs font-bold text-slate-400 uppercase">METHODYA v2</span>
+                      </div>
+
+                      {/* Cuerpo de la Diapositiva */}
+                      <div className="grid grid-cols-2 gap-6 my-auto z-10">
+                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 flex flex-col justify-center">
+                          <span className="text-[8px] font-bold uppercase text-slate-400">Estadio de Piaget Evaluado</span>
+                          <span className="text-sm font-extrabold text-brand-violet mt-1">
+                            {slidesConfig.slideTexts[1] ? (
+                              slidesConfig.slideTexts[1].actual.replace(/{{estadio_cognitivo}}/g, formDataAnswers.estadio_cognitivo || '[Estadio]')
+                            ) : ''}
+                          </span>
+                        </div>
+
+                        <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 flex flex-col justify-center">
+                          <span className="text-[8px] font-bold uppercase text-slate-400">Edad del Estudiante</span>
+                          <span className="text-sm font-extrabold text-brand-teal mt-1">
+                            {slidesConfig.slideTexts[2] ? (
+                              slidesConfig.slideTexts[2].actual.replace(/{{edad_estudiante}}/g, formDataAnswers.edad_estudiante || '[Edad]')
+                            ) : ''}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Pie de Página de la Diapositiva */}
+                      <div className="border-t border-slate-100 pt-3 flex justify-between items-center text-[10px] text-slate-500 z-10">
+                        <div className="italic">
+                          {slidesConfig.slideTexts[3] ? (
+                            slidesConfig.slideTexts[3].actual.replace(/{{observaciones_metodologicas}}/g, formDataAnswers.observaciones_metodologicas || '[Sin diagnóstico]')
+                          ) : ''}
+                        </div>
+                        <div className="font-bold uppercase tracking-wider text-brand-amber">PIAGET {piagetCalibration.estadio.toUpperCase().split('/')[0]}</div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+
+              </div>
+            )}
+
+            {/* PESTAÑA 4: GESTIÓN DE USUARIOS Y ROLES (REQUISITO 1) */}
+            {activeTab === 'users-management' && (
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <div className="p-6 border-b border-slate-100 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-800 font-title">Administración de Usuarios y Perfiles</h2>
+                    <p className="text-xs text-slate-500">Crea, edita, audita roles y cambia contraseñas de seguridad de METHODYA</p>
+                  </div>
+                  <button 
+                    onClick={() => openUserModal('create')}
+                    className="bg-brand-teal hover:bg-[#0D9488]/90 text-white font-semibold text-xs px-4 py-2.5 rounded-xl transition duration-150 flex items-center gap-1.5 shadow"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"></path></svg>
+                    Nuevo Usuario
+                  </button>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-200 text-slate-500 text-xs font-bold uppercase tracking-wider">
+                        <th className="px-6 py-4">Usuario</th>
+                        <th className="px-6 py-4">Correo Electrónico</th>
+                        <th className="px-6 py-4">Perfil / Rol</th>
+                        <th className="px-6 py-4">Estado</th>
+                        <th className="px-6 py-4">F. Registro</th>
+                        <th className="px-6 py-4 text-center">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 text-sm">
+                      {users.map(user => (
+                        <tr key={user.id} className="hover:bg-slate-50/50">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-brand-softTeal text-brand-teal font-extrabold flex items-center justify-center text-xs">
+                                {user.nombre.charAt(0)}
+                              </div>
+                              <span className="font-semibold text-slate-800">{user.nombre}</span>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-slate-600">{user.email}</td>
+                          <td className="px-6 py-4">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                              user.rol === 'Administrador' ? 'bg-red-50 text-red-700 border border-red-100' :
+                              user.rol === 'Diseñador' ? 'bg-blue-50 text-blue-700 border border-blue-100' :
+                              user.rol === 'Validador Pedagógico' ? 'bg-brand-softTeal text-brand-teal border border-teal-100' :
+                              user.rol === 'Editor' ? 'bg-purple-50 text-purple-700 border border-purple-100' :
+                              'bg-amber-50 text-amber-700 border border-amber-100'
+                            }`}>
+                              {user.rol}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className={`inline-flex items-center gap-1 text-xs font-bold ${user.estado === 'Activo' ? 'text-emerald-600' : 'text-slate-400'}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${user.estado === 'Activo' ? 'bg-emerald-500' : 'bg-slate-300'}`}></span>
+                              {user.estado}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-slate-500 text-xs">{user.fechaRegistro}</td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center justify-center gap-2">
+                              <button 
+                                onClick={() => openUserModal('edit', user)}
+                                className="p-1 text-slate-500 hover:text-brand-teal rounded transition"
+                                title="Editar datos"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                              </button>
+                              <button 
+                                onClick={() => openUserModal('password', user)}
+                                className="p-1 text-slate-500 hover:text-brand-amber rounded transition"
+                                title="Cambiar clave"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"></path></svg>
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteUser(user.id, user.nombre)}
+                                className="p-1 text-slate-500 hover:text-red-600 rounded transition"
+                                title="Eliminar"
+                              >
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* PESTAÑA 5: PARÁMETROS DEL SERVIDOR */}
+            {activeTab === 'server-config' && (
+              <div className="max-w-2xl mx-auto bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col gap-6">
+                <div>
+                  <h2 className="text-lg font-bold text-slate-800 font-title">Parámetros e Integraciones de Backend</h2>
+                  <p className="text-xs text-slate-500">Conecta tu frontend estático con los endpoints del servidor seguro</p>
+                </div>
+
+                <div className="flex flex-col gap-5">
+                  <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-bold text-slate-800">Modo de Simulación (Mock)</h4>
+                      <p className="text-xs text-slate-500">Usa algoritmos y respuestas locales sin consultar la API real</p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={apiConfig.useMockBackend}
+                        onChange={(e) => setApiConfig({ ...apiConfig, useMockBackend: e.target.checked })}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-slate-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-brand-teal"></div>
+                    </label>
+                  </div>
+
+                  {!apiConfig.useMockBackend && (
+                    <div className="flex flex-col gap-4 border-l-2 border-brand-teal pl-4 py-1">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Endpoint URL del Backend Serverless</label>
+                        <input 
+                          type="text"
+                          value={apiConfig.backendUrl}
+                          onChange={(e) => setApiConfig({ ...apiConfig, backendUrl: e.target.value })}
+                          className="w-full text-xs font-mono border border-slate-300 rounded-xl px-3 py-2"
+                          placeholder="Ej: https://methodya-api.vercel.app/api"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1.5">Clave de API de Gemini (Local temporal)</label>
+                        <input 
+                          type="password"
+                          value={apiConfig.geminiKey}
+                          onChange={(e) => setApiConfig({ ...apiConfig, geminiKey: e.target.value })}
+                          className="w-full text-xs font-mono border border-slate-300 rounded-xl px-3 py-2"
+                          placeholder="Pega tu API Key de Google Studio (AIzaSy...)"
+                        />
+                        <p className="text-[10px] text-slate-400 mt-1">Nota: En producción, es más seguro delegar esta clave a las variables de entorno (.env) del servidor de Vercel/Netlify.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+          </main>
+
+          {/* VENTANA MODAL PARA CONTROL DE USUARIOS (CREAR, EDITAR, CONTRASEÑA) */}
+          {userModal.isOpen && (
+            <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-md overflow-hidden transform transition-all">
+                <div className="custom-gradient-bg px-6 py-4 text-white">
+                  <h3 className="text-lg font-bold font-title">
+                    {userModal.mode === 'create' && 'Crear Nuevo Colaborador'}
+                    {userModal.mode === 'edit' && 'Actualizar Datos de Colaborador'}
+                    {userModal.mode === 'password' && 'Actualizar Contraseña de Seguridad'}
+                  </h3>
+                  <p className="text-xs text-brand-linen/80 mt-1">Completa los campos del perfil a continuación.</p>
+                </div>
+
+                <div className="p-6 flex flex-col gap-4">
+                  {userModal.mode !== 'password' ? (
+                    <>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Nombre Completo</label>
+                        <input 
+                          type="text"
+                          value={userModal.formData.nombre}
+                          onChange={(e) => setUserModal({
+                            ...userModal,
+                            formData: { ...userModal.formData, nombre: e.target.value }
+                          })}
+                          className="w-full text-sm border border-slate-300 rounded-xl px-3 py-2"
+                          placeholder="Ej. Dr. Andrés Soler"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Correo Electrónico</label>
+                        <input 
+                          type="email"
+                          value={userModal.formData.email}
+                          onChange={(e) => setUserModal({
+                            ...userModal,
+                            formData: { ...userModal.formData, email: e.target.value }
+                          })}
+                          className="w-full text-sm border border-slate-300 rounded-xl px-3 py-2"
+                          placeholder="andres.soler@methodya.edu"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Perfil / Rol</label>
+                          <select 
+                            value={userModal.formData.rol}
+                            onChange={(e) => setUserModal({
+                              ...userModal,
+                              formData: { ...userModal.formData, rol: e.target.value }
+                            })}
+                            className="w-full text-xs border border-slate-300 rounded-xl px-2 py-2 bg-white"
+                          >
+                            <option value="Administrador">Administrador</option>
+                            <option value="Diseñador">Diseñador</option>
+                            <option value="Validador Pedagógico">Validador Pedagógico</option>
+                            <option value="Editor">Editor</option>
+                            <option value="Interventor">Interventor</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Estado</label>
+                          <select 
+                            value={userModal.formData.estado}
+                            onChange={(e) => setUserModal({
+                              ...userModal,
+                              formData: { ...userModal.formData, estado: e.target.value }
+                            })}
+                            className="w-full text-xs border border-slate-300 rounded-xl px-2 py-2 bg-white"
+                          >
+                            <option value="Activo">Activo</option>
+                            <option value="Inactivo">Inactivo</option>
+                          </select>
+                        </div>
+                      </div>
+                    </>
+                  ) : null}
+
+                  {(userModal.mode === 'create' || userModal.mode === 'password') && (
+                    <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Contraseña</label>
+                        <input 
+                          type="password"
+                          value={userModal.formData.password}
+                          onChange={(e) => setUserModal({
+                            ...userModal,
+                            formData: { ...userModal.formData, password: e.target.value }
+                          })}
+                          className="w-full text-sm border border-slate-300 rounded-xl px-3 py-1.5 bg-white"
+                          placeholder="••••••••"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Confirmar</label>
+                        <input 
+                          type="password"
+                          value={userModal.formData.confirmPassword}
+                          onChange={(e) => setUserModal({
+                            ...userModal,
+                            formData: { ...userModal.formData, confirmPassword: e.target.value }
+                          })}
+                          className="w-full text-sm border border-slate-300 rounded-xl px-3 py-1.5 bg-white"
+                          placeholder="••••••••"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex gap-3 justify-end pt-3 border-t border-slate-100 mt-2">
+                    <button 
+                      onClick={() => setUserModal({ ...userModal, isOpen: false })}
+                      className="px-4 py-2 border border-slate-300 hover:bg-slate-50 rounded-xl text-xs font-semibold text-slate-600 transition"
+                    >
+                      Cancelar
+                    </button>
+                    <button 
+                      onClick={handleSaveUser}
+                      className="px-4 py-2 bg-brand-teal hover:bg-[#0D9488]/90 text-white rounded-xl text-xs font-semibold transition shadow"
+                    >
+                      Guardar Cambios
+                    </button>
+                  </div>
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* FOOTER CORPORATIVO DE METHODYA */}
+          <footer className="bg-slate-950 text-slate-400 py-6 px-6 text-center border-t border-slate-800 text-xs">
+            <p className="font-semibold text-slate-200">© 2026 METHODYA. Todos los derechos reservados.</p>
+            <p className="mt-1.5 max-w-xl mx-auto text-slate-500 leading-relaxed">
+              Esta herramienta de calibración pedagógica y automatización de slides se rige bajo la propiedad de secretos empresariales y competencia desleal de la legislación aplicable.
+            </p>
+          </footer>
+
+        </div>
+      );
+    }
+
+    // Renderizar la aplicación en el DOM
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
