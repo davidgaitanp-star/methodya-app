@@ -800,7 +800,7 @@
                                 <div>
                                   <label className="block text-xs font-bold text-slate-600 uppercase mb-1">Instrucciones para Gemini (Lenguaje Natural)</label>
                                   <textarea 
-                                    value={field.iaPrompt}
+                                    value={selectedField?.iaPrompt || ""} 
                                     onChange={(e) => updateFieldProperty(field.id, 'iaPrompt', e.target.value)}
                                     className="w-full text-sm border border-slate-300 rounded-xl p-3 h-20 focus:ring-1 focus:ring-brand-teal bg-white"
                                     placeholder="Ej: Debe ser una dirección de email corporativo que termine únicamente en @methodya.edu..."
